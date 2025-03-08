@@ -16,7 +16,7 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY", "a5a5412f6e045c93c67917ed9bd0c7e0555008d4
 SENDER_ADDRESS = "0xFCcf2c16eB1e9111244af8F798b5b20C8a4b483F"
 
 # Promotional tweet settings
-EXPECTED_TWEET_ID = "1898488802437714384"  # Updated with your promotional tweet ID
+EXPECTED_TWEET_ID = "1898491049565172177"  # Updated with your new promotional tweet ID
 PROMOTIONAL_TWEET_URL = f"https://x.com/dontgetrekt101/status/{EXPECTED_TWEET_ID}"
 
 # Function to send MON
@@ -117,7 +117,7 @@ def home():
         <div class="instructions">
             <strong>Instructions:</strong><br>
             - <strong>X Username:</strong> Enter your X username starting with @ (e.g., @yourusername).<br>
-            - <strong>Tweet ID:</strong> Retweet the promotional tweet below. Copy the number after '/status/' (e.g., 1898488802437714384) from the tweet URL and paste it here.<br>
+            - <strong>Tweet ID:</strong> Retweet the promotional tweet below. Copy the number after '/status/' (e.g., 1898491049565172177) from the tweet URL and paste it here.<br>
             - You must follow @dontgetrekt101 and retweet to qualify.<br>
         </div>
         <input type="submit" value="Claim 0.1 MON">
