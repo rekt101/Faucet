@@ -1,16 +1,64 @@
 from flask import Flask, request, render_template_string
+from web3 import Web3
+import os
 
 app = Flask(__name__)
 
+# Connect to Monad Testnet
+MONAD_TESTNET_RPC = "https://testnet-rpc.monad.xyz"
+web3 = Web3(Web3.HTTPProvider(MONAD_TESTNET_RPC))
+
+# Verify connection
+if not web3.is_connected():
+    raise Exception("Cannot connect to Monad Testnet!")
+
+# Wallet settings
+PRIVATE_KEY = os.getenv("PRIVATE_KEY", "a5a5412f6e045c93c67917ed9bd0c7e0555008d45c5c2257e2e59aa88bd8b70")  # Temporary for local testing
+SENDER_ADDRESS = "0xFCcf2c16eB1e9111244af8F798b5b20C8a4b483F"
+
+# Function to send MON
+def send_mon(recipient_address):
+    try:
+        account = web3.eth.account.from_key(PRIVATE_KEY)
+        if account.address.lower() != SENDER_ADDRESS.lower():
+            raise ValueError("Private key does not match sender address!")
+        nonce = web3.eth.get_transaction_count(SENDER_ADDRESS)
+        amount_in_wei = web3.to_wei(0.1, 'ether')  # 0.1 MON
+        gas_price = web3.eth.gas_price
+        gas_limit = 21000
+
+        tx = {
+            'nonce': nonce,
+            'to': recipient_address,
+            'value': amount_in_wei,
+            'gas': gas_limit,
+            'gasPrice': gas_price,
+            'chainId': 512  # Monad Testnet Chain ID
+        }
+
+        signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+        tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        return web3.to_hex(tx_hash)
+    except Exception as e:
+        return f"Error sending MON: {str(e)}"
+
 @app.route("/", methods=["GET", "POST"])
 def home():
+    message = ""
     if request.method == "POST":
         eth_address = request.form["eth_address"]
         tweet_id = request.form["tweet_id"]
         x_user_id = request.form["x_user_id"]
-        return f"Success! Transaction initiated for 0.1 MON to {eth_address}. Send your X User ID ({x_user_id}) to @dontgetrekt101 for verification."
 
-    # Use triple quotes for multi-line string, ensure proper indentation
+        if not web3.is_address(eth_address):
+            message = "Invalid MetaMask address!"
+        else:
+            tx_hash = send_mon(eth_address)
+            if "Error" in tx_hash:
+                message = tx_hash
+            else:
+                message = f"Transaction sent! Tx Hash: {tx_hash}. Send your X User ID ({x_user_id}) to @dontgetrekt101 for verification."
+
     html = """<!DOCTYPE html>
 <html>
 <head>
@@ -18,9 +66,9 @@ def home():
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <style>
         body {
-            background-color: #1a1a1a; /* Dark base */
+            background-color: #1a1a1a;
             font-family: 'Orbitron', sans-serif;
-            color: #00f7ff; /* Neon blue text */
+            color: #00f7ff;
             text-align: center;
             margin: 0;
             padding: 20px;
@@ -31,13 +79,13 @@ def home():
         }
         h1 {
             font-size: 2.5em;
-            text-shadow: 0 0 5px #00f7ff; /* Neon blue glow */
+            text-shadow: 0 0 5px #00f7ff;
             margin-bottom: 20px;
         }
         form {
-            background: rgba(0, 0, 0, 0.7); /* Darker overlay */
+            background: rgba(0, 0, 0, 0.7);
             padding: 15px;
-            border: 1px solid #00f7ff; /* Neon blue border */
+            border: 1px solid #00f7ff;
             border-radius: 5px;
             display: inline-block;
         }
@@ -46,28 +94,32 @@ def home():
             margin: 10px 0 5px;
         }
         input[type="text"] {
-            background: #1a1a1a; /* Matches body dark */
-            border: 1px solid #00f7ff; /* Neon blue border */
-            color: #00f7ff; /* Neon blue text */
+            background: #1a1a1a;
+            border: 1px solid #00f7ff;
+            color: #00f7ff;
             padding: 5px;
             width: 200px;
             border-radius: 3px;
         }
         input[type="submit"] {
-            background: #00f7ff; /* Neon blue button */
+            background: #00f7ff;
             border: none;
             padding: 5px 10px;
-            color: #1a1a1a; /* Dark text on button */
+            color: #1a1a1a;
             margin-top: 10px;
             cursor: pointer;
             border-radius: 3px;
         }
         input[type="submit"]:hover {
-            background: #00d4e6; /* Lighter neon blue on hover */
+            background: #00d4e6;
         }
         #metamask-error {
-            color: #ff0000; /* Red error text */
+            color: #ff0000;
             display: none;
+        }
+        .message {
+            margin-top: 20px;
+            color: #ff0000;
         }
     </style>
     <script>
@@ -75,6 +127,9 @@ def home():
             if (typeof window.ethereum !== 'undefined') {
                 try {
                     await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const web3 = new Web3(window.ethereum);
+                    const accounts = await web3.eth.getAccounts();
+                    document.getElementsByName('eth_address')[0].value = accounts[0];
                     alert('MetaMask connected! Enter your details and click Claim.');
                 } catch (error) {
                     document.getElementById('metamask-error').style.display = 'block';
@@ -84,45 +139,6 @@ def home():
                 document.getElementById('metamask-error').style.display = 'block';
             }
         }
-
-        async function sendTransaction(address) {
-            const web3 = new Web3(window.ethereum);
-            const amount = web3.utils.toWei('0.1', 'ether'); // 0.1 MON
-            try {
-                const tx = {
-                    from: (await web3.eth.getAccounts())[0],
-                    to: address,
-                    value: amount,
-                    gas: 21000,
-                    gasPrice: web3.utils.toWei('20', 'gwei')
-                };
-                const txHash = await window.ethereum.request({
-                    method: 'eth_sendTransaction',
-                    params: [tx]
-                });
-                return txHash;
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-                return null;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('claimForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const eth_address = document.getElementsByName('eth_address')[0].value;
-                const txHash = await sendTransaction(eth_address);
-                if (txHash) {
-                    fetch('/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: `eth_address=${encodeURIComponent(eth_address)}&tweet_id=${encodeURIComponent(document.getElementsByName('tweet_id')[0].value)}&x_user_id=${encodeURIComponent(document.getElementsByName('x_user_id')[0].value)}`
-                    }).then(response => response.text()).then(result => {
-                        alert(result);
-                    });
-                }
-            });
-        });
     </script>
 </head>
 <body>
@@ -130,17 +146,18 @@ def home():
     <p id="metamask-error">Please install MetaMask or enable it in your browser!</p>
     <button onclick="connectMetaMask()">Connect MetaMask</button>
     <form id="claimForm" method="post">
-        <label>MetaMask Address:</label><input type="text" name="eth_address"><br>
-        <label>Tweet ID (your retweet):</label><input type="text" name="tweet_id"><br>
-        <label>Your X User ID:</label><input type="text" name="x_user_id"><br>
+        <label>MetaMask Address:</label><input type="text" name="eth_address" required><br>
+        <label>Tweet ID (your retweet):</label><input type="text" name="tweet_id" required><br>
+        <label>Your X User ID:</label><input type="text" name="x_user_id" required><br>
         <input type="submit" value="Claim 0.1 MON">
     </form>
-    <p>Follow me on <a href="https://x.com/dontgetrekt101">@dontgetrekt101</a>, click to follow!</p>
-    <p>Retweet <a href="https://x.com/dontgetrekt101/status/your_promotional_tweet_id">this post</a> to qualify!</p>
+    <p>Follow me on <a href="https://x.com/dontgetrekt101" target="_blank" rel="noopener noreferrer">@dontgetrekt101</a>, click to follow!</p>
+    <p>Retweet <a href="https://x.com/dontgetrekt101/status/your_promotional_tweet_id" target="_blank" rel="noopener noreferrer">this post</a> to qualify!</p>
+    <p class="message">{{ message }}</p>
 </body>
 </html>
 """
-    return render_template_string(html)
+    return render_template_string(html, message=message)
 
 if __name__ == "__main__":
     app.run(debug=True)
