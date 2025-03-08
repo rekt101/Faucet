@@ -16,7 +16,7 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY", "a5a5412f6e045c93c67917ed9bd0c7e0555008d4
 SENDER_ADDRESS = "0xFCcf2c16eB1e9111244af8F798b5b20C8a4b483F"
 
 # Promotional tweet settings
-EXPECTED_TWEET_ID = "1898491049565172177"  # Updated with your new promotional tweet ID
+EXPECTED_TWEET_ID = "1898491049565172177"  # Your promotional tweet ID
 PROMOTIONAL_TWEET_URL = f"https://x.com/dontgetrekt101/status/{EXPECTED_TWEET_ID}"
 
 # Function to send MON
