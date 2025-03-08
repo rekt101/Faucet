@@ -8,13 +8,16 @@ app = Flask(__name__)
 MONAD_TESTNET_RPC = "https://testnet-rpc.monad.xyz"
 web3 = Web3(Web3.HTTPProvider(MONAD_TESTNET_RPC))
 
-# Verify connection
 if not web3.is_connected():
     raise Exception("Cannot connect to Monad Testnet!")
 
 # Wallet settings
-PRIVATE_KEY = os.getenv("PRIVATE_KEY", "a5a5412f6e045c93c67917ed9bd0c7e0555008d45c5c2257e2e59aa88bd8b70")  # Temporary for local testing
+PRIVATE_KEY = os.getenv("PRIVATE_KEY", "a5a5412f6e045c93c67917ed9bd0c7e0555008d45c5c2257e2e59aa88bd8b70")
 SENDER_ADDRESS = "0xFCcf2c16eB1e9111244af8F798b5b20C8a4b483F"
+
+# Promotional tweet settings
+EXPECTED_TWEET_ID = "1234567890123456789"  # Replace with your actual promotional tweet ID
+PROMOTIONAL_TWEET_URL = f"https://x.com/dontgetrekt101/status/{EXPECTED_TWEET_ID}"
 
 # Function to send MON
 def send_mon(recipient_address):
@@ -47,17 +50,24 @@ def home():
     message = ""
     if request.method == "POST":
         eth_address = request.form["eth_address"]
+        x_username = request.form["x_username"]
         tweet_id = request.form["tweet_id"]
-        x_user_id = request.form["x_user_id"]
 
         if not web3.is_address(eth_address):
             message = "Invalid MetaMask address!"
+        elif not x_username.startswith("@"):
+            message = "Invalid X username! It must start with @ (e.g., @yourusername)."
+        elif not tweet_id.isdigit():
+            message = "Invalid Tweet ID! It must be a number. Check the promotional tweet link."
+        elif tweet_id != EXPECTED_TWEET_ID:
+            message = f"Invalid Tweet ID! You must retweet the promotional tweet (ID: {EXPECTED_TWEET_ID})."
         else:
+            # Automatically process the claim if all validations pass
             tx_hash = send_mon(eth_address)
             if "Error" in tx_hash:
                 message = tx_hash
             else:
-                message = f"Transaction sent! Tx Hash: {tx_hash}. Send your X User ID ({x_user_id}) to @dontgetrekt101 for verification."
+                message = f"Transaction sent! Tx Hash: {tx_hash}. Thank you for following and retweeting!"
 
     html = """<!DOCTYPE html>
 <html>
@@ -65,62 +75,17 @@ def home():
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <style>
-        body {
-            background-color: #1a1a1a;
-            font-family: 'Orbitron', sans-serif;
-            color: #00f7ff;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        h1 {
-            font-size: 2.5em;
-            text-shadow: 0 0 5px #00f7ff;
-            margin-bottom: 20px;
-        }
-        form {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border: 1px solid #00f7ff;
-            border-radius: 5px;
-            display: inline-block;
-        }
-        label {
-            display: block;
-            margin: 10px 0 5px;
-        }
-        input[type="text"] {
-            background: #1a1a1a;
-            border: 1px solid #00f7ff;
-            color: #00f7ff;
-            padding: 5px;
-            width: 200px;
-            border-radius: 3px;
-        }
-        input[type="submit"] {
-            background: #00f7ff;
-            border: none;
-            padding: 5px 10px;
-            color: #1a1a1a;
-            margin-top: 10px;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-        input[type="submit"]:hover {
-            background: #00d4e6;
-        }
-        #metamask-error {
-            color: #ff0000;
-            display: none;
-        }
-        .message {
-            margin-top: 20px;
-            color: #ff0000;
-        }
+        body { background-color: #1a1a1a; font-family: 'Orbitron', sans-serif; color: #00f7ff; text-align: center; margin: 0; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; }
+        h1 { font-size: 2.5em; text-shadow: 0 0 5px #00f7ff; margin-bottom: 20px; }
+        form { background: rgba(0, 0, 0, 0.7); padding: 15px; border: 1px solid #00f7ff; border-radius: 5px; display: inline-block; }
+        label { display: block; margin: 10px 0 5px; }
+        input[type="text"] { background: #1a1a1a; border: 1px solid #00f7ff; color: #00f7ff; padding: 5px; width: 200px; border-radius: 3px; }
+        input[type="submit"] { background: #00f7ff; border: none; padding: 5px 10px; color: #1a1a1a; margin-top: 10px; cursor: pointer; border-radius: 3px; }
+        input[type="submit"]:hover { background: #00d4e6; }
+        #metamask-error { color: #ff0000; display: none; }
+        .message { margin-top: 20px; color: #ff0000; }
+        .instructions { font-size: 0.9em; color: #00d4e6; margin-top: 10px; text-align: left; }
+        .instructions a { color: #00f7ff; text-decoration: underline; }
     </style>
     <script>
         async function connectMetaMask() {
@@ -147,17 +112,23 @@ def home():
     <button onclick="connectMetaMask()">Connect MetaMask</button>
     <form id="claimForm" method="post">
         <label>MetaMask Address:</label><input type="text" name="eth_address" required><br>
+        <label>Your X Username:</label><input type="text" name="x_username" required placeholder="@yourusername"><br>
         <label>Tweet ID (your retweet):</label><input type="text" name="tweet_id" required><br>
-        <label>Your X User ID:</label><input type="text" name="x_user_id" required><br>
+        <div class="instructions">
+            <strong>Instructions:</strong><br>
+            - <strong>X Username:</strong> Enter your X username starting with @ (e.g., @yourusername).<br>
+            - <strong>Tweet ID:</strong> Retweet the promotional tweet below. Copy the number after '/status/' (e.g., 1234567890123456789) from the tweet URL and paste it here.<br>
+            - You must follow @dontgetrekt101 and retweet to qualify.<br>
+        </div>
         <input type="submit" value="Claim 0.1 MON">
     </form>
-    <p>Follow me on <a href="https://x.com/dontgetrekt101" target="_blank" rel="noopener noreferrer">@dontgetrekt101</a>, click to follow!</p>
-    <p>Retweet <a href="https://x.com/dontgetrekt101/status/your_promotional_tweet_id" target="_blank" rel="noopener noreferrer">this post</a> to qualify!</p>
+    <p>Follow me on <a href="https://x.com/dontgetrekt101" target="_blank" rel="noopener noreferrer">@dontgetrekt101</a> and retweet to qualify!</p>
+    <p>Retweet <a href="{{ promotional_tweet_url }}" target="_blank" rel="noopener noreferrer">this post</a> to qualify!</p>
     <p class="message">{{ message }}</p>
 </body>
 </html>
 """
-    return render_template_string(html, message=message)
+    return render_template_string(html, message=message, promotional_tweet_url=PROMOTIONAL_TWEET_URL)
 
 if __name__ == "__main__":
     app.run(debug=True)
